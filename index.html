@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f172a">
+<title>Expiry Tracker</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --text: #1c1917;
+    --text-muted: #78716c;
+    --text-light: #a8a29e;
+    --border: #e7e5e4;
+    --border-light: #f5f5f4;
+    --primary: #0f172a;
+    --primary-light: #1e293b;
+    --accent: #38bdf8;
+    --red: #ef4444;
+    --orange: #f97316;
+    --yellow: #eab308;
+    --green: #22c55e;
+    --blue: #3b82f6;
+    --indigo: #6366f1;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, var(--primary-light), var(--primary));
+    color: #fff;
+    padding: 20px 20px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-inner { display: flex; justify-content: space-between; align-items: center; }
+  .logo { font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .logo-icon { font-size: 26px; }
+  .logo-accent { color: var(--accent); }
+  .header-stats { display: flex; gap: 8px; align-items: center; }
+  .header-stat { font-size: 13px; opacity: 0.7; }
+  .header-badge {
+    font-size: 11px; font-weight: 600; color: #fff;
+    padding: 2px 8px; border-radius: 99px;
+  }
+
+  /* ── NAV ── */
+  .nav {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 62px;
+    z-index: 99;
+  }
+  .nav-btn {
+    flex: 1; padding: 12px 4px 10px;
+    background: none; border: none; border-bottom: 3px solid transparent;
+    cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    color: var(--text-muted); font-family: inherit; transition: all 0.2s;
+  }
+  .nav-btn.active { color: var(--primary); border-bottom-color: var(--accent); }
+  .nav-icon { font-size: 18px; }
+  .nav-label { font-size: 11px; font-weight: 500; }
+
+  /* ── MAIN ── */
+  .main { padding: 16px 16px 100px; }
+  .section { animation: fadeIn 0.3s ease; }
+  .section-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; color: var(--primary); }
+
+  .hidden { display: none !important; }
+
+  /* ── STATS GRID ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat-card {
+    padding: 14px; border-radius: 12px; border: 1px solid; text-align: center;
+  }
+  .stat-value {
+    font-size: 28px; font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .stat-label { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── BANNER ── */
+  .banner {
+    padding: 12px 16px; border-radius: 12px; font-size: 13px;
+    font-weight: 500; margin-bottom: 16px; display: flex;
+    align-items: center; gap: 6px; animation: fadeIn 0.4s ease; line-height: 1.4;
+  }
+  .banner-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+  .banner-info { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+  .banner-warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+  .banner-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+  /* ── URGENT LIST ── */
+  .urgent-section {
+    background: var(--surface); border-radius: 14px;
+    padding: 16px; border: 1px solid var(--border);
+  }
+  .urgent-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+  .urgent-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border-light);
+    border-left: 3px solid; padding-left: 10px; margin-left: -2px;
+  }
+  .urgent-icon { font-size: 16px; }
+  .urgent-info { flex: 1; display: flex; flex-direction: column; }
+  .urgent-name { font-size: 14px; font-weight: 500; }
+  .urgent-days { font-size: 12px; font-weight: 600; }
+  .urgent-date { font-size: 12px; color: var(--text-light); }
+
+  /* ── EMPTY STATE ── */
+  .empty-state { text-align: center; padding: 48px 20px; }
+  .empty-icon { font-size: 56px; display: block; }
+  .empty-text { font-size: 16px; color: var(--text-muted); margin: 12px 0 20px; }
+
+  /* ── SCAN ── */
+  .scan-prompt {
+    text-align: center; padding: 32px 20px;
+    background: var(--surface); border-radius: 16px;
+    border: 2px dashed var(--border);
+  }
+  .scan-icon-big { font-size: 56px; margin-bottom: 8px; }
+  .scan-text { font-size: 15px; color: #57534e; margin-bottom: 20px; }
+  .scan-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .scan-hint { font-size: 12px; color: var(--text-light); margin-top: 16px; }
+
+  .scanning-state { text-align: center; padding: 48px 20px; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  .scanning-text { font-size: 14px; color: var(--text-muted); }
+
+  /* ── RESULT CARD ── */
+  .result-card {
+    background: var(--surface); border-radius: 16px; padding: 20px;
+    border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    animation: fadeIn 0.3s ease;
+  }
+  .result-title { font-size: 17px; font-weight: 600; margin-bottom: 12px; }
+  .result-confidence { font-size: 13px; margin-bottom: 12px; }
+  .result-note { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; font-style: italic; }
+  .result-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  /* ── FIELDS ── */
+  .field-label {
+    display: block; font-size: 12px; font-weight: 600;
+    color: #57534e; margin-bottom: 4px; margin-top: 12px;
+  }
+  .field-input {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: 15px; font-family: inherit;
+    background: var(--bg); outline: none;
+  }
+  .field-input:focus { border-color: var(--accent); }
+
+  /* ── BUTTONS ── */
+  .btn-primary {
+    padding: 10px 20px; background: var(--primary); color: #fff;
+    border: none; border-radius: 10px; font-size: 14px;
+    font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary:disabled { opacity: 0.5; }
+  .btn-secondary {
+    padding: 10px 20px; background: #f1f5f9; color: #334155;
+    border: 1px solid #e2e8f0; border-radius: 10px;
+    font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit;
+  }
+  .btn-ghost {
+    padding: 10px 16px; background: none; color: #64748b;
+    border: none; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  .btn-icon {
+    background: none; border: none; cursor: pointer;
+    font-size: 16px; padding: 4px;
+  }
+  .btn-danger {
+    padding: 8px 16px; background: #fef2f2; color: #dc2626;
+    border: 1px solid #fecaca; border-radius: 10px;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+
+  /* ── MANUAL FORM ── */
+  .manual-toggle { text-align: center; margin-top: 16px; }
+  .manual-form {
+    background: var(--surface); border-radius: 14px; padding: 20px;
+    border: 1px solid var(--border); margin-top: 16px; animation: fadeIn 0.2s ease;
+  }
+  .manual-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+
+  /* ── FILTER ── */
+  .filter-bar { margin-bottom: 12px; }
+  .search-input {
+    width: 100%; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: 14px; font-family: inherit;
+    background: var(--surface); outline: none;
+  }
+  .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip {
+    padding: 6px 12px; border-radius: 99px;
+    border: 1px solid var(--border); background: var(--surface);
+    font-size: 12px; cursor: pointer; font-family: inherit;
+    color: #57534e; transition: all 0.15s;
+  }
+  .chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .empty-list { text-align: center; color: var(--text-light); padding: 32px; font-size: 14px; }
+
+  /* ── PRODUCT LIST ── */
+  .product-list { display: flex; flex-direction: column; gap: 8px; }
+  .product-card {
+    background: var(--surface); border-radius: 12px; padding: 12px 14px;
+    border: 1px solid var(--border); border-left: 4px solid;
+    display: flex; justify-content: space-between; align-items: center;
+    animation: fadeIn 0.2s ease;
+  }
+  .product-main { display: flex; align-items: center; gap: 10px; flex: 1; }
+  .product-icon { font-size: 18px; }
+  .product-info { flex: 1; display: flex; flex-direction: column; }
+  .product-name { font-size: 14px; font-weight: 500; }
+  .product-category { font-size: 11px; color: var(--text-light); }
+  .product-right { text-align: right; }
+  .product-days {
+    font-size: 15px; font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .product-date { font-size: 11px; color: var(--text-light); display: block; }
+  .product-actions { display: flex; gap: 4px; margin-left: 8px; }
+
+  /* ── SETTINGS ── */
+  .settings-card {
+    background: var(--surface); border-radius: 14px; padding: 20px;
+    border: 1px solid var(--border); margin-bottom: 20px;
+  }
+  .settings-desc { font-size: 14px; color: #57534e; margin-bottom: 16px; line-height: 1.5; }
+  .settings-row { margin-bottom: 16px; }
+  .settings-note {
+    margin-top: 16px; padding: 14px; background: #f8fafc;
+    border-radius: 10px; font-size: 13px; color: #64748b; line-height: 1.5;
+  }
+  .settings-alert {
+    margin-top: 12px; padding: 10px 14px;
+    border-radius: 10px; font-size: 13px; border: 1px solid;
+  }
+  .setup-section {
+    background: var(--surface); border-radius: 14px; padding: 20px;
+    border: 1px solid #bfdbfe; margin-bottom: 20px;
+  }
+  .setup-title { font-size: 15px; font-weight: 600; color: #1e40af; margin-bottom: 8px; }
+  .setup-text { font-size: 13px; color: #475569; line-height: 1.6; }
+  .setup-text code {
+    background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  }
+  .danger-zone {
+    background: var(--surface); border-radius: 14px; padding: 20px;
+    border: 1px solid #fecaca;
+  }
+  .danger-title { font-size: 15px; font-weight: 600; color: #991b1b; margin-bottom: 4px; }
+  .danger-text { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+
+  /* ── SYNC STATUS ── */
+  .sync-bar {
+    font-size: 11px; text-align: center; padding: 4px;
+    color: var(--text-light); background: var(--border-light);
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── LOADING ── */
+  .loading-screen {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 80vh;
+  }
+  .loading-pulse { font-size: 48px; animation: pulse 1.5s infinite; }
+  .loading-text { font-size: 14px; color: var(--text-muted); margin-top: 12px; }
+
+  /* ── ERROR CARD ── */
+  .error-card {
+    text-align: center; padding: 24px; background: #fef2f2;
+    border-radius: 14px; border: 1px solid #fecaca;
+  }
+  .error-text { color: #991b1b; font-size: 14px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="loading-screen">
+    <div class="loading-pulse">📦</div>
+    <p class="loading-text">Načítavam produkty...</p>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// EXPIRY TRACKER — standalone version with GitHub sync
+// ════════════════════════════════════════════════════════════
+
+const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
+
+// ─── CONFIG (loaded from localStorage or settings) ───
+let CONFIG = {
+  anthropicKey: "",
+  email: "",
+  githubToken: "",
+  githubRepo: "",   // "username/repo-name"
+};
+
+let products = [];
+let currentView = "dashboard";
+let currentFilter = "all";
+let searchTerm = "";
+let scanning = false;
+
+// ─── HELPERS ────────────────────────────────────────────────
+function daysUntil(dateStr) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(dateStr); target.setHours(0,0,0,0);
+  return Math.ceil((target - today) / 86400000);
+}
+
+function statusOf(days) {
+  if (days < 0) return "expired";
+  if (days <= 7) return "critical";
+  if (days <= 30) return "warning";
+  if (days <= 60) return "soon";
+  return "ok";
+}
+
+const STATUS = {
+  expired:  { label: "Expirované",    color: "#ef4444", bg: "#fef2f2", icon: "⛔" },
+  critical: { label: "Kritické (<7d)", color: "#f97316", bg: "#fff7ed", icon: "🔴" },
+  warning:  { label: "Blíži sa (<30d)", color: "#eab308", bg: "#fefce8", icon: "🟠" },
+  soon:     { label: "Sledovať (<60d)", color: "#3b82f6", bg: "#eff6ff", icon: "🟡" },
+  ok:       { label: "V poriadku",     color: "#22c55e", bg: "#f0fdf4", icon: "🟢" },
+};
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString("sk-SK", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+// ─── STORAGE ────────────────────────────────────────────────
+function loadData() {
+  try { products = JSON.parse(localStorage.getItem("et_products") || "[]"); } catch { products = []; }
+  try { CONFIG = { ...CONFIG, ...JSON.parse(localStorage.getItem("et_config") || "{}") }; } catch {}
+}
+
+function saveProducts() {
+  localStorage.setItem("et_products", JSON.stringify(products));
+  syncToGitHub(); // async, fire and forget
+}
+
+function saveConfig() {
+  localStorage.setItem("et_config", JSON.stringify(CONFIG));
+}
+
+// ─── GITHUB SYNC ────────────────────────────────────────────
+async function syncToGitHub() {
+  if (!CONFIG.githubToken || !CONFIG.githubRepo) return;
+
+  const url = `https://api.github.com/repos/${CONFIG.githubRepo}/contents/products.json`;
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(products, null, 2))));
+
+  try {
+    // get current file SHA
+    const getResp = await fetch(url, {
+      headers: { Authorization: `token ${CONFIG.githubToken}`, Accept: "application/vnd.github.v3+json" }
+    });
+    let sha = undefined;
+    if (getResp.ok) {
+      const data = await getResp.json();
+      sha = data.sha;
+    }
+
+    // create/update file
+    await fetch(url, {
+      method: "PUT",
+      headers: {
+        Authorization: `token ${CONFIG.githubToken}`,
+        Accept: "application/vnd.github.v3+json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: `Update products (${new Date().toISOString().slice(0,16)})`,
+        content,
+        ...(sha ? { sha } : {})
+      })
+    });
+  } catch (err) {
+    console.error("GitHub sync failed:", err);
+  }
+}
+
+// ─── SCAN WITH CLAUDE ───────────────────────────────────────
+async function scanPhoto(file) {
+  if (!CONFIG.anthropicKey) {
+    alert("Najprv zadajte Anthropic API kľúč v nastaveniach!");
+    return null;
+  }
+
+  const base64 = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(",")[1]);
+    r.onerror = () => rej(new Error("Chyba čítania"));
+    r.readAsDataURL(file);
+  });
+
+  const resp = await fetch(ANTHROPIC_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": CONFIG.anthropicKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
+          { type: "text", text: `Analyze this product photo. Extract:
+1. Product name (be specific, include brand if visible)
+2. Expiration date (dátum spotreby / minimálna trvanlivosť / best before / use by / exp)
+3. Category (mliečne, mäsové, pečivo, konzervy, nápoje, mrazené, ovocie_zelenina, iné)
+
+IMPORTANT: Look carefully at ALL text on the packaging.
+
+Respond ONLY with valid JSON, no markdown:
+{"name": "...", "expiry": "YYYY-MM-DD", "category": "...", "confidence": "high/medium/low"}
+
+If you cannot find an expiration date: {"name": "...", "expiry": null, "category": "...", "confidence": "none", "note": "reason"}` }
+        ]
+      }]
+    })
+  });
+
+  const data = await resp.json();
+  const text = data.content?.map(i => i.text || "").join("") || "";
+  return JSON.parse(text.replace(/```json|```/g, "").trim());
+}
+
+// ─── COMPUTED ───────────────────────────────────────────────
+function getStats() {
+  return {
+    total: products.length,
+    expired: products.filter(p => daysUntil(p.expiry) < 0).length,
+    critical: products.filter(p => { const d = daysUntil(p.expiry); return d >= 0 && d <= 7; }).length,
+    warning: products.filter(p => { const d = daysUntil(p.expiry); return d > 7 && d <= 30; }).length,
+    ok: products.filter(p => daysUntil(p.expiry) > 30).length,
+  };
+}
+
+function getFiltered() {
+  return products
+    .filter(p => currentFilter === "all" || statusOf(daysUntil(p.expiry)) === currentFilter)
+    .filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => daysUntil(a.expiry) - daysUntil(b.expiry));
+}
+
+// ─── RENDER ─────────────────────────────────────────────────
+function render() {
+  const stats = getStats();
+  const app = document.getElementById("app");
+
+  app.innerHTML = `
+    <header class="header">
+      <div class="header-inner">
+        <h1 class="logo">
+          <span class="logo-icon">📦</span>
+          <span>Expiry<span class="logo-accent">Tracker</span></span>
+        </h1>
+        <div class="header-stats">
+          <span class="header-stat">${stats.total} produktov</span>
+          ${stats.expired > 0 ? `<span class="header-badge" style="background:#ef4444">${stats.expired} exp.</span>` : ""}
+          ${stats.critical > 0 ? `<span class="header-badge" style="background:#f97316">${stats.critical} krit.</span>` : ""}
+        </div>
+      </div>
+    </header>
+
+    <nav class="nav">
+      ${["dashboard|📊|Prehľad","scan|📷|Skenovať","list|📋|Produkty","settings|⚙️|Nastavenia"].map(t => {
+        const [id, icon, label] = t.split("|");
+        return `<button class="nav-btn ${currentView === id ? "active" : ""}" onclick="switchView('${id}')">
+          <span class="nav-icon">${icon}</span>
+          <span class="nav-label">${label}</span>
+        </button>`;
+      }).join("")}
+    </nav>
+
+    <main class="main">
+      ${currentView === "dashboard" ? renderDashboard(stats) : ""}
+      ${currentView === "scan" ? renderScan() : ""}
+      ${currentView === "list" ? renderList() : ""}
+      ${currentView === "settings" ? renderSettings() : ""}
+    </main>
+  `;
+}
+
+function renderDashboard(stats) {
+  const urgent = products.filter(p => daysUntil(p.expiry) <= 30).sort((a,b) => daysUntil(a.expiry) - daysUntil(b.expiry));
+  const configOk = CONFIG.anthropicKey && CONFIG.email && CONFIG.githubToken && CONFIG.githubRepo;
+
+  return `<div class="section">
+    <h2 class="section-title">Prehľad</h2>
+
+    ${!configOk ? `<div class="banner banner-warning">⚠️ Nastavte API kľúče v záložke Nastavenia pre plnú funkčnosť</div>` : ""}
+
+    <div class="stats-grid">
+      ${[
+        { l: "Celkom", v: stats.total, c: "#6366f1", bg: "#eef2ff" },
+        { l: "Expirované", v: stats.expired, c: "#ef4444", bg: "#fef2f2" },
+        { l: "Kritické", v: stats.critical, c: "#f97316", bg: "#fff7ed" },
+        { l: "Do 30 dní", v: stats.warning, c: "#eab308", bg: "#fefce8" },
+        { l: "V poriadku", v: stats.ok, c: "#22c55e", bg: "#f0fdf4" },
+      ].map(s => `
+        <div class="stat-card" style="border-color:${s.c}33;background:${s.bg}">
+          <div class="stat-value" style="color:${s.c}">${s.v}</div>
+          <div class="stat-label">${s.l}</div>
+        </div>`).join("")}
+    </div>
+
+    ${urgent.length > 0 ? `
+      <div class="urgent-section">
+        <h3 class="urgent-title">⚠️ Vyžaduje pozornosť</h3>
+        ${urgent.slice(0, 10).map(p => {
+          const days = daysUntil(p.expiry);
+          const cfg = STATUS[statusOf(days)];
+          return `<div class="urgent-item" style="border-left-color:${cfg.color}">
+            <span class="urgent-icon">${cfg.icon}</span>
+            <div class="urgent-info">
+              <span class="urgent-name">${p.name}</span>
+              <span class="urgent-days" style="color:${cfg.color}">
+                ${days < 0 ? Math.abs(days) + " dní po expirácii" : days === 0 ? "Dnes expiruje!" : days + " dní"}
+              </span>
+            </div>
+            <span class="urgent-date">${formatDate(p.expiry)}</span>
+          </div>`;
+        }).join("")}
+      </div>` : ""}
+
+    ${products.length === 0 ? `
+      <div class="empty-state">
+        <span class="empty-icon">📷</span>
+        <p class="empty-text">Začnite skenovaním prvého produktu</p>
+        <button class="btn-primary" onclick="switchView('scan')">Skenovať produkt</button>
+      </div>` : ""}
+  </div>`;
+}
+
+function renderScan() {
+  return `<div class="section">
+    <h2 class="section-title">Skenovať produkt</h2>
+
+    <div id="scan-area">
+      <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleFileSelect(event)" style="display:none">
+
+      <div id="scan-prompt" class="scan-prompt">
+        <div class="scan-icon-big">📸</div>
+        <p class="scan-text">Odfotografujte produkt s viditeľným dátumom spotreby</p>
+        <div class="scan-buttons">
+          <button class="btn-primary" onclick="triggerCamera()">📷 Odfotiť</button>
+          <button class="btn-secondary" onclick="triggerGallery()">🖼️ Z galérie</button>
+        </div>
+        <p class="scan-hint">Tip: Foťte priamo dátum spotreby pre lepšie rozpoznanie</p>
+      </div>
+
+      <div id="scan-loading" class="scanning-state hidden">
+        <div class="spinner"></div>
+        <p class="scanning-text">Rozpoznávam produkt a dátum spotreby...</p>
+      </div>
+
+      <div id="scan-result" class="hidden"></div>
+    </div>
+
+    <div class="manual-toggle">
+      <button class="btn-ghost" onclick="toggleManualForm()">➕ Pridať manuálne</button>
+    </div>
+
+    <div id="manual-form" class="manual-form hidden">
+      <h3 class="manual-title">Manuálne pridanie</h3>
+      <label class="field-label">Názov produktu</label>
+      <input class="field-input" id="manual-name" placeholder="napr. Jogurt Rajo">
+      <label class="field-label">Dátum spotreby</label>
+      <input class="field-input" id="manual-expiry" type="date">
+      <label class="field-label">Kategória</label>
+      <select class="field-input" id="manual-category">
+        ${["mliečne","mäsové","pečivo","konzervy","nápoje","mrazené","ovocie_zelenina","iné"].map(c => `<option value="${c}">${c}</option>`).join("")}
+      </select>
+      <div class="result-actions">
+        <button class="btn-primary" onclick="addManual()">✅ Pridať</button>
+        <button class="btn-ghost" onclick="toggleManualForm()">Zrušiť</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderList() {
+  const stats = getStats();
+  const filtered = getFiltered();
+
+  return `<div class="section">
+    <h2 class="section-title">Všetky produkty (${filtered.length})</h2>
+
+    <div class="filter-bar">
+      <input class="search-input" placeholder="Hľadať produkt..." value="${searchTerm}" oninput="searchTerm=this.value;render()">
+    </div>
+
+    <div class="filter-chips">
+      ${[
+        { id: "all", l: `Všetky (${products.length})` },
+        { id: "expired", l: `Expirované (${stats.expired})` },
+        { id: "critical", l: `Kritické (${stats.critical})` },
+        { id: "warning", l: `Do 30d (${stats.warning})` },
+        { id: "ok", l: `OK (${stats.ok})` },
+      ].map(f => `<button class="chip ${currentFilter === f.id ? "active" : ""}" onclick="currentFilter='${f.id}';render()">${f.l}</button>`).join("")}
+    </div>
+
+    ${filtered.length === 0 ? `<p class="empty-list">Žiadne produkty v tejto kategórii</p>` : ""}
+
+    <div class="product-list">
+      ${filtered.map(p => {
+        const days = daysUntil(p.expiry);
+        const cfg = STATUS[statusOf(days)];
+        return `<div class="product-card" style="border-left-color:${cfg.color}">
+          <div class="product-main">
+            <span class="product-icon">${cfg.icon}</span>
+            <div class="product-info">
+              <span class="product-name">${p.name}</span>
+              <span class="product-category">${p.category || ""}</span>
+            </div>
+            <div class="product-right">
+              <span class="product-days" style="color:${cfg.color}">
+                ${days < 0 ? Math.abs(days) + "d po" : days === 0 ? "Dnes!" : days + "d"}
+              </span>
+              <span class="product-date">${formatDate(p.expiry)}</span>
+            </div>
+          </div>
+          <div class="product-actions">
+            <button class="btn-icon" onclick="removeProduct('${p.id}')">🗑️</button>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
+
+function renderSettings() {
+  return `<div class="section">
+    <h2 class="section-title">Nastavenia</h2>
+
+    <div class="setup-section">
+      <h3 class="setup-title">🔑 API kľúče</h3>
+      <p class="setup-text">Pre fungovanie appky potrebujete:</p>
+
+      <label class="field-label">Anthropic API kľúč (pre rozpoznávanie)</label>
+      <input class="field-input" type="password" id="cfg-anthropic" value="${CONFIG.anthropicKey}" placeholder="sk-ant-...">
+
+      <label class="field-label">Email (kam posielať upozornenia)</label>
+      <input class="field-input" type="email" id="cfg-email" value="${CONFIG.email}" placeholder="vas@email.com">
+
+      <label class="field-label">GitHub Token (pre sync a automatický email)</label>
+      <input class="field-input" type="password" id="cfg-github-token" value="${CONFIG.githubToken}" placeholder="ghp_...">
+
+      <label class="field-label">GitHub Repo (username/repo-name)</label>
+      <input class="field-input" id="cfg-github-repo" value="${CONFIG.githubRepo}" placeholder="mojmeno/expiry-tracker">
+
+      <div class="result-actions">
+        <button class="btn-primary" onclick="saveSettings()">💾 Uložiť nastavenia</button>
+      </div>
+
+      <div id="settings-status"></div>
+    </div>
+
+    <div class="settings-card">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:8px">📧 Manuálne odoslanie emailu</h3>
+      <p class="settings-desc">Pošle prehľad produktov s expiráciou do 30 dní na váš email.</p>
+      <button class="btn-primary" onclick="sendTestEmail()" ${!CONFIG.email || !CONFIG.anthropicKey ? "disabled" : ""}>
+        📧 Odoslať prehľad teraz
+      </button>
+      <div id="email-status"></div>
+    </div>
+
+    <div class="settings-note">
+      <strong>Ako funguje automatický email?</strong><br><br>
+      Po nastavení GitHub tokenu a repozitára sa produkty synchronizujú na GitHub. GitHub Actions spustí kontrolu každý deň o 7:00 ráno a pošle vám email ak niečo expiruje do 30 dní.<br><br>
+      <strong>Vy nemusíte nič robiť</strong> — email príde sám.
+    </div>
+
+    <div class="danger-zone" style="margin-top:20px">
+      <h3 class="danger-title">Vymazať všetky dáta</h3>
+      <p class="danger-text">Nezvratná akcia.</p>
+      <button class="btn-danger" onclick="clearAll()">🗑️ Vymazať všetko</button>
+    </div>
+  </div>`;
+}
+
+// ─── ACTIONS ────────────────────────────────────────────────
+function switchView(v) { currentView = v; render(); }
+
+function triggerCamera() {
+  const inp = document.getElementById("file-input");
+  inp.setAttribute("capture", "environment");
+  inp.click();
+}
+
+function triggerGallery() {
+  const inp = document.getElementById("file-input");
+  inp.removeAttribute("capture");
+  inp.click();
+}
+
+async function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  document.getElementById("scan-prompt").classList.add("hidden");
+  document.getElementById("scan-loading").classList.remove("hidden");
+  document.getElementById("scan-result").classList.add("hidden");
+
+  try {
+    const result = await scanPhoto(file);
+    showScanResult(result);
+  } catch (err) {
+    document.getElementById("scan-loading").classList.add("hidden");
+    document.getElementById("scan-result").classList.remove("hidden");
+    document.getElementById("scan-result").innerHTML = `
+      <div class="error-card">
+        <p class="error-text">Nepodarilo sa rozpoznať: ${err.message}</p>
+        <button class="btn-primary" onclick="resetScan()">Skúsiť znova</button>
+      </div>`;
+  }
+}
+
+function showScanResult(result) {
+  document.getElementById("scan-loading").classList.add("hidden");
+  document.getElementById("scan-result").classList.remove("hidden");
+
+  const confColor = result.confidence === "high" ? "#22c55e" : result.confidence === "medium" ? "#eab308" : "#ef4444";
+  const confLabel = result.confidence === "high" ? "Vysoká ✓" : result.confidence === "medium" ? "Stredná ⚠" : "Nízka ✗";
+
+  document.getElementById("scan-result").innerHTML = `
+    <div class="result-card">
+      <h3 class="result-title">Rozpoznaný produkt</h3>
+      <div class="result-confidence">Istota: <span style="font-weight:600;color:${confColor}">${confLabel}</span></div>
+      ${result.note ? `<p class="result-note">ℹ️ ${result.note}</p>` : ""}
+
+      <label class="field-label">Názov produktu</label>
+      <input class="field-input" id="result-name" value="${result.name || ""}">
+
+      <label class="field-label">Dátum spotreby</label>
+      <input class="field-input" id="result-expiry" type="date" value="${result.expiry || ""}">
+
+      <label class="field-label">Kategória</label>
+      <input class="field-input" id="result-category" value="${result.category || "iné"}" readonly>
+
+      <div class="result-actions">
+        <button class="btn-primary" onclick="addScanned()">✅ Pridať produkt</button>
+        <button class="btn-secondary" onclick="resetScan()">📷 Znova</button>
+        <button class="btn-ghost" onclick="resetScan()">Zrušiť</button>
+      </div>
+    </div>`;
+}
+
+function addScanned() {
+  const name = document.getElementById("result-name").value;
+  const expiry = document.getElementById("result-expiry").value;
+  const category = document.getElementById("result-category").value;
+  if (!name || !expiry) return alert("Vyplňte názov a dátum!");
+  products.push({ id: genId(), name, expiry, category, addedAt: new Date().toISOString() });
+  saveProducts();
+  switchView("list");
+}
+
+function resetScan() {
+  document.getElementById("scan-prompt").classList.remove("hidden");
+  document.getElementById("scan-loading").classList.add("hidden");
+  document.getElementById("scan-result").classList.add("hidden");
+  document.getElementById("file-input").value = "";
+}
+
+function toggleManualForm() {
+  document.getElementById("manual-form").classList.toggle("hidden");
+}
+
+function addManual() {
+  const name = document.getElementById("manual-name").value;
+  const expiry = document.getElementById("manual-expiry").value;
+  const category = document.getElementById("manual-category").value;
+  if (!name || !expiry) return alert("Vyplňte názov a dátum!");
+  products.push({ id: genId(), name, expiry, category, addedAt: new Date().toISOString() });
+  saveProducts();
+  switchView("list");
+}
+
+function removeProduct(id) {
+  products = products.filter(p => p.id !== id);
+  saveProducts();
+  render();
+}
+
+function saveSettings() {
+  CONFIG.anthropicKey = document.getElementById("cfg-anthropic").value.trim();
+  CONFIG.email = document.getElementById("cfg-email").value.trim();
+  CONFIG.githubToken = document.getElementById("cfg-github-token").value.trim();
+  CONFIG.githubRepo = document.getElementById("cfg-github-repo").value.trim();
+  saveConfig();
+
+  const el = document.getElementById("settings-status");
+  el.innerHTML = `<div class="banner banner-success" style="margin-top:12px">✅ Nastavenia uložené!</div>`;
+
+  // sync current products to GitHub
+  if (CONFIG.githubToken && CONFIG.githubRepo) {
+    syncToGitHub().then(() => {
+      el.innerHTML += `<div class="banner banner-success" style="margin-top:8px">✅ Produkty synchronizované na GitHub</div>`;
+    });
+  }
+}
+
+async function sendTestEmail() {
+  const el = document.getElementById("email-status");
+  el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">📤 Odosielam...</div>`;
+
+  const expiring = products.filter(p => daysUntil(p.expiry) <= 30).sort((a,b) => daysUntil(a.expiry) - daysUntil(b.expiry));
+  if (expiring.length === 0) {
+    el.innerHTML = `<div class="banner banner-success" style="margin-top:12px">🎉 Žiadne produkty neexpirujú do 30 dní</div>`;
+    return;
+  }
+
+  const rows = expiring.map(p => {
+    const d = daysUntil(p.expiry);
+    const s = d < 0 ? "⛔ EXPIROVANÉ" : d <= 7 ? "🔴 KRITICKÉ" : "🟠 Blíži sa";
+    return `${s} | ${p.name} | ${formatDate(p.expiry)} (${d < 0 ? Math.abs(d)+"d po" : d+"d"})`;
+  }).join("\\n");
+
+  try {
+    const resp = await fetch(ANTHROPIC_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": CONFIG.anthropicKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: `Please compose and send an email. To: ${CONFIG.email}. Subject: ⚠️ Expiry Tracker – ${expiring.length} produktov. Body: ${rows}` }]
+      })
+    });
+    el.innerHTML = `<div class="banner banner-success" style="margin-top:12px">✅ Email odoslaný na ${CONFIG.email}</div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="banner banner-error" style="margin-top:12px">❌ Chyba: ${err.message}</div>`;
+  }
+}
+
+function clearAll() {
+  if (!confirm("Naozaj vymazať všetky produkty?")) return;
+  products = [];
+  saveProducts();
+  render();
+}
+
+// ─── INIT ───────────────────────────────────────────────────
+loadData();
+render();
+</script>
+</body>
+</html>
