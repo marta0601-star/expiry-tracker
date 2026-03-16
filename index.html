@@ -889,30 +889,55 @@ function removeProduct(id) {
   render();
 }
 
-function saveSettings() {
-  CONFIG.anthropicKey = document.getElementById("cfg-anthropic").value.trim();
-  CONFIG.email = document.getElementById("cfg-email").value.trim();
+async function saveSettings() {
   CONFIG.githubToken = document.getElementById("cfg-github-token").value.trim();
   CONFIG.githubRepo = document.getElementById("cfg-github-repo").value.trim();
 
-  const el = document.getElementById("settings-status");
+  const enteredKey = document.getElementById("cfg-anthropic").value.trim();
+  const enteredEmail = document.getElementById("cfg-email").value.trim();
+
+  let el = document.getElementById("settings-status");
   el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">⏳ Ukladám a synchronizujem...</div>`;
 
-  // save locally
+  // save token + repo locally
+  localStorage.setItem("et_config", JSON.stringify(CONFIG));
+
+  // if API key or email are empty, try pulling from GitHub first (new device)
+  if (CONFIG.githubToken && CONFIG.githubRepo && (!enteredKey || !enteredEmail)) {
+    el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">📥 Sťahujem nastavenia z GitHub...</div>`;
+    await loadFromGitHub();
+    localStorage.setItem("et_config", JSON.stringify(CONFIG));
+    render();
+    // done — settings loaded from GitHub
+    el = document.getElementById("settings-status");
+    if (CONFIG.anthropicKey || CONFIG.email) {
+      el.innerHTML = `
+        <div class="banner banner-success" style="margin-top:12px">✅ Nastavenia stiahnuté z GitHub!</div>
+        <div class="banner banner-info" style="margin-top:8px">🔄 API kľúč a email sa načítali automaticky.</div>`;
+    } else {
+      el.innerHTML = `<div class="banner banner-warning" style="margin-top:12px">⚠️ Na GitHub ešte nie sú žiadne uložené nastavenia. Vyplňte API kľúč a email a uložte znova.</div>`;
+    }
+    return;
+  }
+
+  // user entered values manually — save them
+  CONFIG.anthropicKey = enteredKey;
+  CONFIG.email = enteredEmail;
   localStorage.setItem("et_config", JSON.stringify(CONFIG));
 
   // sync config + products to GitHub
   if (CONFIG.githubToken && CONFIG.githubRepo) {
-    Promise.all([
-      syncFileToGitHub("config.json", { anthropicKey: CONFIG.anthropicKey, email: CONFIG.email }),
-      syncFileToGitHub("products.json", products)
-    ]).then(() => {
+    try {
+      await Promise.all([
+        syncFileToGitHub("config.json", { anthropicKey: CONFIG.anthropicKey, email: CONFIG.email }),
+        syncFileToGitHub("products.json", products)
+      ]);
       el.innerHTML = `
         <div class="banner banner-success" style="margin-top:12px">✅ Nastavenia uložené a synchronizované na GitHub!</div>
         <div class="banner banner-info" style="margin-top:8px">🔄 Teraz môžete otvoriť appku kdekoľvek — nastavenia sa načítajú automaticky.</div>`;
-    }).catch(() => {
+    } catch {
       el.innerHTML = `<div class="banner banner-error" style="margin-top:12px">❌ Chyba pri synchronizácii. Skontrolujte token a repo.</div>`;
-    });
+    }
   } else {
     el.innerHTML = `<div class="banner banner-warning" style="margin-top:12px">⚠️ Uložené lokálne. Zadajte GitHub token a repo pre synchronizáciu.</div>`;
   }
