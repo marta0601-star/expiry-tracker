@@ -5,5 +5,12 @@
     "expiry": "2026-04-16",
     "category": "mliečne",
     "addedAt": "2026-03-16T13:58:29.693Z"
+  },
+  {
+    "id": "mmt99cm2vgvz",
+    "name": "Latte Macchiato",
+    "expiry": "2026-04-04",
+    "category": "nápoje",
+    "addedAt": "2026-03-16T14:04:53.402Z"
   }
 ]
