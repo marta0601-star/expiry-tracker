@@ -372,39 +372,83 @@ function genId() {
 }
 
 // ─── STORAGE ────────────────────────────────────────────────
-function loadData() {
+// Token + repo = localStorage (per device)
+// API key + email = config.json on GitHub (shared)
+// Products = products.json on GitHub (shared) + localStorage (cache)
+
+function loadLocal() {
   try { products = JSON.parse(localStorage.getItem("et_products") || "[]"); } catch { products = []; }
-  try { CONFIG = { ...CONFIG, ...JSON.parse(localStorage.getItem("et_config") || "{}") }; } catch {}
+  try {
+    const saved = JSON.parse(localStorage.getItem("et_config") || "{}");
+    CONFIG = { ...CONFIG, ...saved };
+  } catch {}
+}
+
+async function loadFromGitHub() {
+  if (!CONFIG.githubToken || !CONFIG.githubRepo) return false;
+  const headers = { Authorization: `token ${CONFIG.githubToken}`, Accept: "application/vnd.github.v3+json" };
+
+  // load config.json
+  try {
+    const resp = await fetch(`https://api.github.com/repos/${CONFIG.githubRepo}/contents/config.json`, { headers });
+    if (resp.ok) {
+      const data = await resp.json();
+      const parsed = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, "")))));
+      if (parsed.anthropicKey) CONFIG.anthropicKey = parsed.anthropicKey;
+      if (parsed.email) CONFIG.email = parsed.email;
+      // save to localStorage as cache
+      localStorage.setItem("et_config", JSON.stringify(CONFIG));
+    }
+  } catch (e) { console.log("No config.json yet:", e); }
+
+  // load products.json
+  try {
+    const resp = await fetch(`https://api.github.com/repos/${CONFIG.githubRepo}/contents/products.json`, { headers });
+    if (resp.ok) {
+      const data = await resp.json();
+      const parsed = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, "")))));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        products = parsed;
+        localStorage.setItem("et_products", JSON.stringify(products));
+      }
+    }
+  } catch (e) { console.log("No products.json yet:", e); }
+
+  return true;
 }
 
 function saveProducts() {
   localStorage.setItem("et_products", JSON.stringify(products));
-  syncToGitHub(); // async, fire and forget
+  syncFileToGitHub("products.json", products);
 }
 
 function saveConfig() {
+  // token + repo always local
   localStorage.setItem("et_config", JSON.stringify(CONFIG));
+  // API key + email → GitHub
+  syncFileToGitHub("config.json", {
+    anthropicKey: CONFIG.anthropicKey,
+    email: CONFIG.email
+  });
 }
 
 // ─── GITHUB SYNC ────────────────────────────────────────────
-async function syncToGitHub() {
+async function syncFileToGitHub(filename, data) {
   if (!CONFIG.githubToken || !CONFIG.githubRepo) return;
 
-  const url = `https://api.github.com/repos/${CONFIG.githubRepo}/contents/products.json`;
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(products, null, 2))));
+  const url = `https://api.github.com/repos/${CONFIG.githubRepo}/contents/${filename}`;
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
 
   try {
-    // get current file SHA
     const getResp = await fetch(url, {
       headers: { Authorization: `token ${CONFIG.githubToken}`, Accept: "application/vnd.github.v3+json" }
     });
     let sha = undefined;
     if (getResp.ok) {
-      const data = await getResp.json();
-      sha = data.sha;
+      const d = await getResp.json();
+      sha = d.sha;
     }
 
-    // create/update file
     await fetch(url, {
       method: "PUT",
       headers: {
@@ -413,14 +457,19 @@ async function syncToGitHub() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        message: `Update products (${new Date().toISOString().slice(0,16)})`,
+        message: `Update ${filename} (${new Date().toISOString().slice(0,16)})`,
         content,
         ...(sha ? { sha } : {})
       })
     });
   } catch (err) {
-    console.error("GitHub sync failed:", err);
+    console.error(`GitHub sync ${filename} failed:`, err);
   }
+}
+
+// keep old name for compatibility
+async function syncToGitHub() {
+  await syncFileToGitHub("products.json", products);
 }
 
 // ─── SCAN WITH CLAUDE ───────────────────────────────────────
@@ -679,33 +728,41 @@ function renderList() {
 }
 
 function renderSettings() {
+  const synced = CONFIG.githubToken && CONFIG.githubRepo;
   return `<div class="section">
     <h2 class="section-title">Nastavenia</h2>
 
     <div class="setup-section">
-      <h3 class="setup-title">🔑 API kľúče</h3>
-      <p class="setup-text">Pre fungovanie appky potrebujete:</p>
+      <h3 class="setup-title">📱 Pripojenie k GitHub (toto zariadenie)</h3>
+      <p class="setup-text">Tieto 2 údaje treba zadať na každom zariadení zvlášť:</p>
+
+      <label class="field-label">GitHub Token</label>
+      <input class="field-input" type="password" id="cfg-github-token" value="${CONFIG.githubToken}" placeholder="ghp_...">
+
+      <label class="field-label">GitHub Repo (username/repo-name)</label>
+      <input class="field-input" id="cfg-github-repo" value="${CONFIG.githubRepo}" placeholder="marta0601-star/expiry-tracker">
+    </div>
+
+    <div class="setup-section" style="border-color:#bbf7d0">
+      <h3 class="setup-title" style="color:#166534">🔄 Synchronizované nastavenia</h3>
+      <p class="setup-text" style="color:#166534">Tieto sa ukladajú na GitHub — zadáte raz a fungujú všade:</p>
 
       <label class="field-label">Anthropic API kľúč (pre rozpoznávanie)</label>
       <input class="field-input" type="password" id="cfg-anthropic" value="${CONFIG.anthropicKey}" placeholder="sk-ant-...">
 
       <label class="field-label">Email (kam posielať upozornenia)</label>
       <input class="field-input" type="email" id="cfg-email" value="${CONFIG.email}" placeholder="vas@email.com">
-
-      <label class="field-label">GitHub Token (pre sync a automatický email)</label>
-      <input class="field-input" type="password" id="cfg-github-token" value="${CONFIG.githubToken}" placeholder="ghp_...">
-
-      <label class="field-label">GitHub Repo (username/repo-name)</label>
-      <input class="field-input" id="cfg-github-repo" value="${CONFIG.githubRepo}" placeholder="mojmeno/expiry-tracker">
-
-      <div class="result-actions">
-        <button class="btn-primary" onclick="saveSettings()">💾 Uložiť nastavenia</button>
-      </div>
-
-      <div id="settings-status"></div>
     </div>
 
-    <div class="settings-card">
+    <div class="result-actions">
+      <button class="btn-primary" onclick="saveSettings()">💾 Uložiť a synchronizovať</button>
+    </div>
+
+    <div id="settings-status"></div>
+
+    ${synced ? `<div class="banner banner-success" style="margin-top:12px">🔄 Synchronizácia aktívna — nastavenia a produkty sa zdieľajú medzi zariadeniami</div>` : `<div class="banner banner-warning" style="margin-top:12px">⚠️ Zadajte GitHub token a repo pre synchronizáciu medzi zariadeniami</div>`}
+
+    <div class="settings-card" style="margin-top:16px">
       <h3 style="font-size:15px;font-weight:600;margin-bottom:8px">📧 Manuálne odoslanie emailu</h3>
       <p class="settings-desc">Pošle prehľad produktov s expiráciou do 30 dní na váš email.</p>
       <button class="btn-primary" onclick="sendTestEmail()" ${!CONFIG.email || !CONFIG.anthropicKey ? "disabled" : ""}>
@@ -715,9 +772,9 @@ function renderSettings() {
     </div>
 
     <div class="settings-note">
-      <strong>Ako funguje automatický email?</strong><br><br>
-      Po nastavení GitHub tokenu a repozitára sa produkty synchronizujú na GitHub. GitHub Actions spustí kontrolu každý deň o 7:00 ráno a pošle vám email ak niečo expiruje do 30 dní.<br><br>
-      <strong>Vy nemusíte nič robiť</strong> — email príde sám.
+      <strong>Ako funguje synchronizácia?</strong><br><br>
+      API kľúč a email sa ukladajú do <code>config.json</code> na GitHub. Keď otvoríte appku na novom zariadení, stačí zadať GitHub token + repo a zvyšok sa stiahne automaticky.<br><br>
+      <strong>Produkty</strong> sa tiež synchronizujú — pridáte na jednom zariadení, uvidíte na druhom.
     </div>
 
     <div class="danger-zone" style="margin-top:20px">
@@ -837,16 +894,27 @@ function saveSettings() {
   CONFIG.email = document.getElementById("cfg-email").value.trim();
   CONFIG.githubToken = document.getElementById("cfg-github-token").value.trim();
   CONFIG.githubRepo = document.getElementById("cfg-github-repo").value.trim();
-  saveConfig();
 
   const el = document.getElementById("settings-status");
-  el.innerHTML = `<div class="banner banner-success" style="margin-top:12px">✅ Nastavenia uložené!</div>`;
+  el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">⏳ Ukladám a synchronizujem...</div>`;
 
-  // sync current products to GitHub
+  // save locally
+  localStorage.setItem("et_config", JSON.stringify(CONFIG));
+
+  // sync config + products to GitHub
   if (CONFIG.githubToken && CONFIG.githubRepo) {
-    syncToGitHub().then(() => {
-      el.innerHTML += `<div class="banner banner-success" style="margin-top:8px">✅ Produkty synchronizované na GitHub</div>`;
+    Promise.all([
+      syncFileToGitHub("config.json", { anthropicKey: CONFIG.anthropicKey, email: CONFIG.email }),
+      syncFileToGitHub("products.json", products)
+    ]).then(() => {
+      el.innerHTML = `
+        <div class="banner banner-success" style="margin-top:12px">✅ Nastavenia uložené a synchronizované na GitHub!</div>
+        <div class="banner banner-info" style="margin-top:8px">🔄 Teraz môžete otvoriť appku kdekoľvek — nastavenia sa načítajú automaticky.</div>`;
+    }).catch(() => {
+      el.innerHTML = `<div class="banner banner-error" style="margin-top:12px">❌ Chyba pri synchronizácii. Skontrolujte token a repo.</div>`;
     });
+  } else {
+    el.innerHTML = `<div class="banner banner-warning" style="margin-top:12px">⚠️ Uložené lokálne. Zadajte GitHub token a repo pre synchronizáciu.</div>`;
   }
 }
 
@@ -895,8 +963,15 @@ function clearAll() {
 }
 
 // ─── INIT ───────────────────────────────────────────────────
-loadData();
-render();
+loadLocal();
+render(); // show immediately with cached data
+
+// then sync from GitHub in background
+if (CONFIG.githubToken && CONFIG.githubRepo) {
+  loadFromGitHub().then(() => {
+    render(); // re-render with fresh data from GitHub
+  });
+}
 </script>
 </body>
 </html>
