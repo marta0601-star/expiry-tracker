@@ -3,21 +3,28 @@
     "id": "mmuqvidvrvak",
     "name": "Ferrero Collection Grand Assortiment",
     "expiry": "2026-06-01",
-    "category": "iné",
+    "category": "inÃ©",
     "addedAt": "2026-03-17T15:05:46.965Z"
   },
   {
     "id": "mmuqz3txrlyq",
     "name": "Kinder Happy Moments",
     "expiry": "2026-08-06",
-    "category": "iné",
+    "category": "inÃ©",
     "addedAt": "2026-03-17T15:08:34.725Z"
   },
   {
     "id": "mmur1h878vbr",
     "name": "Red Bull The Peach Edition Energy Drink",
     "expiry": "2026-08-19",
-    "category": "nápoje",
+    "category": "nÃ¡poje",
     "addedAt": "2026-03-17T15:10:25.399Z"
+  },
+  {
+    "id": "mmur5nu1zojy",
+    "name": "M&M's Biscuit",
+    "expiry": "2026-04-17",
+    "category": "iné",
+    "addedAt": "2026-03-17T15:13:40.586Z"
   }
 ]
