@@ -372,10 +372,6 @@ function genId() {
 }
 
 // ─── STORAGE ────────────────────────────────────────────────
-// Token + repo = localStorage (per device)
-// API key + email = config.json on GitHub (shared)
-// Products = products.json on GitHub (shared) + localStorage (cache)
-
 function loadLocal() {
   try { products = JSON.parse(localStorage.getItem("et_products") || "[]"); } catch { products = []; }
   try {
@@ -385,36 +381,38 @@ function loadLocal() {
 }
 
 async function loadFromGitHub() {
-  if (!CONFIG.githubToken || !CONFIG.githubRepo) return false;
+  if (!CONFIG.githubToken || !CONFIG.githubRepo) return "no-credentials";
   const headers = { Authorization: `token ${CONFIG.githubToken}`, Accept: "application/vnd.github.v3+json" };
+  let configLoaded = false;
 
   // load config.json
   try {
     const resp = await fetch(`https://api.github.com/repos/${CONFIG.githubRepo}/contents/config.json`, { headers });
     if (resp.ok) {
       const data = await resp.json();
-      const parsed = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, "")))));
-      if (parsed.anthropicKey) CONFIG.anthropicKey = parsed.anthropicKey;
-      if (parsed.email) CONFIG.email = parsed.email;
-      // save to localStorage as cache
+      const raw = atob(data.content.replace(/\n/g, ""));
+      const parsed = JSON.parse(raw);
+      if (parsed.anthropicKey) { CONFIG.anthropicKey = parsed.anthropicKey; configLoaded = true; }
+      if (parsed.email) { CONFIG.email = parsed.email; configLoaded = true; }
       localStorage.setItem("et_config", JSON.stringify(CONFIG));
     }
-  } catch (e) { console.log("No config.json yet:", e); }
+  } catch (e) { console.error("config.json load error:", e); }
 
   // load products.json
   try {
     const resp = await fetch(`https://api.github.com/repos/${CONFIG.githubRepo}/contents/products.json`, { headers });
     if (resp.ok) {
       const data = await resp.json();
-      const parsed = JSON.parse(decodeURIComponent(escape(atob(data.content.replace(/\n/g, "")))));
+      const raw = atob(data.content.replace(/\n/g, ""));
+      const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         products = parsed;
         localStorage.setItem("et_products", JSON.stringify(products));
       }
     }
-  } catch (e) { console.log("No products.json yet:", e); }
+  } catch (e) { console.error("products.json load error:", e); }
 
-  return true;
+  return configLoaded ? "ok" : "no-config";
 }
 
 function saveProducts() {
@@ -423,51 +421,52 @@ function saveProducts() {
 }
 
 function saveConfig() {
-  // token + repo always local
   localStorage.setItem("et_config", JSON.stringify(CONFIG));
-  // API key + email → GitHub
-  syncFileToGitHub("config.json", {
-    anthropicKey: CONFIG.anthropicKey,
-    email: CONFIG.email
-  });
+  syncFileToGitHub("config.json", { anthropicKey: CONFIG.anthropicKey, email: CONFIG.email });
 }
 
 // ─── GITHUB SYNC ────────────────────────────────────────────
 async function syncFileToGitHub(filename, data) {
-  if (!CONFIG.githubToken || !CONFIG.githubRepo) return;
+  if (!CONFIG.githubToken || !CONFIG.githubRepo) return { ok: false, error: "Chýba token alebo repo" };
 
   const url = `https://api.github.com/repos/${CONFIG.githubRepo}/contents/${filename}`;
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+  const jsonStr = JSON.stringify(data, null, 2);
+  const content = btoa(unescape(encodeURIComponent(jsonStr)));
+  const headers = { Authorization: `token ${CONFIG.githubToken}`, Accept: "application/vnd.github.v3+json" };
 
   try {
-    const getResp = await fetch(url, {
-      headers: { Authorization: `token ${CONFIG.githubToken}`, Accept: "application/vnd.github.v3+json" }
-    });
+    // get SHA of existing file
     let sha = undefined;
+    const getResp = await fetch(url, { headers });
     if (getResp.ok) {
       const d = await getResp.json();
       sha = d.sha;
     }
 
-    await fetch(url, {
+    // create or update
+    const putResp = await fetch(url, {
       method: "PUT",
-      headers: {
-        Authorization: `token ${CONFIG.githubToken}`,
-        Accept: "application/vnd.github.v3+json",
-        "Content-Type": "application/json"
-      },
+      headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
         message: `Update ${filename} (${new Date().toISOString().slice(0,16)})`,
         content,
         ...(sha ? { sha } : {})
       })
     });
+
+    if (!putResp.ok) {
+      const err = await putResp.json();
+      console.error(`GitHub PUT ${filename} failed:`, putResp.status, err);
+      return { ok: false, error: `GitHub error ${putResp.status}: ${err.message || "unknown"}` };
+    }
+
+    return { ok: true };
   } catch (err) {
     console.error(`GitHub sync ${filename} failed:`, err);
+    return { ok: false, error: err.message };
   }
 }
 
-// keep old name for compatibility
 async function syncToGitHub() {
   await syncFileToGitHub("products.json", products);
 }
@@ -897,49 +896,52 @@ async function saveSettings() {
   const enteredEmail = document.getElementById("cfg-email").value.trim();
 
   let el = document.getElementById("settings-status");
-  el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">⏳ Ukladám a synchronizujem...</div>`;
 
-  // save token + repo locally
+  // save token + repo locally always
   localStorage.setItem("et_config", JSON.stringify(CONFIG));
 
-  // if API key or email are empty, try pulling from GitHub first (new device)
-  if (CONFIG.githubToken && CONFIG.githubRepo && (!enteredKey || !enteredEmail)) {
-    el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">📥 Sťahujem nastavenia z GitHub...</div>`;
-    await loadFromGitHub();
+  if (!CONFIG.githubToken || !CONFIG.githubRepo) {
+    el.innerHTML = `<div class="banner banner-warning" style="margin-top:12px">⚠️ Zadajte GitHub token a repo.</div>`;
+    return;
+  }
+
+  // CASE 1: User entered API key + email → save to GitHub
+  if (enteredKey && enteredEmail) {
+    CONFIG.anthropicKey = enteredKey;
+    CONFIG.email = enteredEmail;
     localStorage.setItem("et_config", JSON.stringify(CONFIG));
-    render();
-    // done — settings loaded from GitHub
-    el = document.getElementById("settings-status");
-    if (CONFIG.anthropicKey || CONFIG.email) {
+
+    el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">⏳ Ukladám na GitHub...</div>`;
+
+    const r1 = await syncFileToGitHub("config.json", { anthropicKey: CONFIG.anthropicKey, email: CONFIG.email });
+    const r2 = await syncFileToGitHub("products.json", products);
+
+    if (r1.ok && r2.ok) {
       el.innerHTML = `
-        <div class="banner banner-success" style="margin-top:12px">✅ Nastavenia stiahnuté z GitHub!</div>
-        <div class="banner banner-info" style="margin-top:8px">🔄 API kľúč a email sa načítali automaticky.</div>`;
+        <div class="banner banner-success" style="margin-top:12px">✅ Nastavenia uložené a synchronizované na GitHub!</div>
+        <div class="banner banner-info" style="margin-top:8px">🔄 Na novom zariadení stačí zadať token + repo.</div>`;
     } else {
-      el.innerHTML = `<div class="banner banner-warning" style="margin-top:12px">⚠️ Na GitHub ešte nie sú žiadne uložené nastavenia. Vyplňte API kľúč a email a uložte znova.</div>`;
+      el.innerHTML = `<div class="banner banner-error" style="margin-top:12px">❌ Chyba: ${r1.error || r2.error}</div>`;
     }
     return;
   }
 
-  // user entered values manually — save them
-  CONFIG.anthropicKey = enteredKey;
-  CONFIG.email = enteredEmail;
-  localStorage.setItem("et_config", JSON.stringify(CONFIG));
+  // CASE 2: API key or email empty → try pulling from GitHub (new device)
+  el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">📥 Sťahujem nastavenia z GitHub...</div>`;
 
-  // sync config + products to GitHub
-  if (CONFIG.githubToken && CONFIG.githubRepo) {
-    try {
-      await Promise.all([
-        syncFileToGitHub("config.json", { anthropicKey: CONFIG.anthropicKey, email: CONFIG.email }),
-        syncFileToGitHub("products.json", products)
-      ]);
-      el.innerHTML = `
-        <div class="banner banner-success" style="margin-top:12px">✅ Nastavenia uložené a synchronizované na GitHub!</div>
-        <div class="banner banner-info" style="margin-top:8px">🔄 Teraz môžete otvoriť appku kdekoľvek — nastavenia sa načítajú automaticky.</div>`;
-    } catch {
-      el.innerHTML = `<div class="banner banner-error" style="margin-top:12px">❌ Chyba pri synchronizácii. Skontrolujte token a repo.</div>`;
-    }
+  const result = await loadFromGitHub();
+
+  if (result === "ok") {
+    localStorage.setItem("et_config", JSON.stringify(CONFIG));
+    render();
+    el = document.getElementById("settings-status");
+    el.innerHTML = `
+      <div class="banner banner-success" style="margin-top:12px">✅ Nastavenia stiahnuté z GitHub!</div>
+      <div class="banner banner-info" style="margin-top:8px">🔄 API kľúč a email sa načítali automaticky.</div>`;
+  } else if (result === "no-config") {
+    el.innerHTML = `<div class="banner banner-warning" style="margin-top:12px">⚠️ config.json neexistuje na GitHub. Vyplňte API kľúč a email a uložte znova.</div>`;
   } else {
-    el.innerHTML = `<div class="banner banner-warning" style="margin-top:12px">⚠️ Uložené lokálne. Zadajte GitHub token a repo pre synchronizáciu.</div>`;
+    el.innerHTML = `<div class="banner banner-error" style="margin-top:12px">❌ Nepodarilo sa pripojiť k GitHub. Skontrolujte token a repo.</div>`;
   }
 }
 
