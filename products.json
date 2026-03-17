@@ -3,7 +3,14 @@
     "id": "mmumtlcd6d2e",
     "name": "Pilos Buttermilk",
     "expiry": "2026-04-01",
-    "category": "mlieÄne",
+    "category": "mlieÃÂne",
     "addedAt": "2026-03-17T13:12:19.021Z"
+  },
+  {
+    "id": "mmunuzofqxj7",
+    "name": "Mentos mixed fruit pastilles",
+    "expiry": "2026-10-17",
+    "category": "iné",
+    "addedAt": "2026-03-17T13:41:23.871Z"
   }
 ]
