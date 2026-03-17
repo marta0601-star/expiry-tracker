@@ -3,7 +3,14 @@
     "id": "mmums046v7xx",
     "name": "Lidl Roasted and Salted Peanuts",
     "expiry": "2026-04-18",
-    "category": "iné",
+    "category": "inÃ©",
     "addedAt": "2026-03-17T13:11:04.854Z"
+  },
+  {
+    "id": "mmumtlcd6d2e",
+    "name": "Pilos Buttermilk",
+    "expiry": "2026-04-01",
+    "category": "mliečne",
+    "addedAt": "2026-03-17T13:12:19.021Z"
   }
 ]
