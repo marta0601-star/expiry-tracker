@@ -3,7 +3,14 @@
     "id": "mmuo64552jgi",
     "name": "Pilos Buttermilk coffee",
     "expiry": "2026-04-01",
-    "category": "nápoje",
+    "category": "nÃ¡poje",
     "addedAt": "2026-03-17T13:50:02.873Z"
+  },
+  {
+    "id": "mmuo6pch9isx",
+    "name": "Mini Drops",
+    "expiry": "2026-10-17",
+    "category": "iné",
+    "addedAt": "2026-03-17T13:50:30.353Z"
   }
 ]
