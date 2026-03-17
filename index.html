@@ -372,8 +372,11 @@ function genId() {
 }
 
 // ─── STORAGE ────────────────────────────────────────────────
+let githubLoaded = false; // true after we loaded from GitHub at least once
+
 function loadLocal() {
   try { products = JSON.parse(localStorage.getItem("et_products") || "[]"); } catch { products = []; }
+  if (products.length > 0) githubLoaded = true;
   try {
     const saved = JSON.parse(localStorage.getItem("et_config") || "{}");
     if (saved.githubToken) CONFIG.githubToken = saved.githubToken;
@@ -410,6 +413,7 @@ async function loadFromGitHub() {
         products = parsed;
         localStorage.setItem("et_products", JSON.stringify(products));
       }
+      githubLoaded = true;
     }
   } catch (e) { console.error("products.json load error:", e); }
 
@@ -418,7 +422,11 @@ async function loadFromGitHub() {
 
 function saveProducts() {
   localStorage.setItem("et_products", JSON.stringify(products));
-  syncFileToGitHub("products.json", products);
+  // sync to GitHub always, EXCEPT if this is a new device that never loaded from GitHub
+  // (prevents overwriting full list with empty on first connect)
+  if (githubLoaded || products.length > 0) {
+    syncFileToGitHub("products.json", products);
+  }
 }
 
 function saveConfig() {
@@ -890,18 +898,18 @@ async function saveSettings() {
     msgs.push("✅ API kľúč uložený");
   }
 
-  // sync products if token is set
+  // pull products FROM GitHub first (don't push!)
   if (CONFIG.githubToken && CONFIG.githubRepo) {
-    el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">⏳ Synchronizujem...</div>`;
-    const r = await syncFileToGitHub("products.json", products);
-    if (r.ok) {
-      msgs.push("✅ Produkty synchronizované");
+    el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">📥 Sťahujem produkty z GitHub...</div>`;
+    const result = await loadFromGitHub();
+    if (result === "ok" || result === "no-config") {
+      msgs.push("✅ Produkty stiahnuté z GitHub (" + products.length + " produktov)");
     } else {
-      msgs.push("❌ Sync chyba: " + r.error);
+      msgs.push("⚠️ Nepodarilo sa stiahnuť z GitHub");
     }
   }
 
-  el.innerHTML = msgs.map(m => `<div class="banner ${m.startsWith("✅") ? "banner-success" : "banner-error"}" style="margin-top:8px">${m}</div>`).join("");
+  el.innerHTML = msgs.map(m => `<div class="banner ${m.startsWith("✅") ? "banner-success" : m.startsWith("⚠") ? "banner-warning" : "banner-error"}" style="margin-top:8px">${m}</div>`).join("");
   render();
 }
 
