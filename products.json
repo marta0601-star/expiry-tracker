@@ -3,21 +3,28 @@
     "id": "mmun67jsihus",
     "name": "Strawberry flavored dairy product",
     "expiry": "2026-09-20",
-    "category": "mlieÄne",
+    "category": "mlieÃÂne",
     "addedAt": "2026-03-17T13:22:07.672Z"
   },
   {
     "id": "mmun9en85adm",
-    "name": "ÄokolÃ¡dovÃ½ krÃ©m",
+    "name": "ÃÂokolÃÂ¡dovÃÂ½ krÃÂ©m",
     "expiry": "2026-03-31",
-    "category": "mlieÄne",
+    "category": "mlieÃÂne",
     "addedAt": "2026-03-17T13:24:36.836Z"
   },
   {
     "id": "mmuna3ys2b0a",
     "name": "Pilos Buttermilk coffee",
     "expiry": "2026-04-01",
-    "category": "nápoje",
+    "category": "nÃ¡poje",
     "addedAt": "2026-03-17T13:25:09.652Z"
+  },
+  {
+    "id": "mmunbc1tnno4",
+    "name": "Mini Drops",
+    "expiry": "2026-10-17",
+    "category": "iné",
+    "addedAt": "2026-03-17T13:26:06.785Z"
   }
 ]
