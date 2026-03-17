@@ -3,14 +3,21 @@
     "id": "mmun67jsihus",
     "name": "Strawberry flavored dairy product",
     "expiry": "2026-09-20",
-    "category": "mliečne",
+    "category": "mlieÄne",
     "addedAt": "2026-03-17T13:22:07.672Z"
   },
   {
     "id": "mmun9en85adm",
-    "name": "Čokoládový krém",
+    "name": "ÄokolÃ¡dovÃ½ krÃ©m",
     "expiry": "2026-03-31",
-    "category": "mliečne",
+    "category": "mlieÄne",
     "addedAt": "2026-03-17T13:24:36.836Z"
+  },
+  {
+    "id": "mmuna3ys2b0a",
+    "name": "Pilos Buttermilk coffee",
+    "expiry": "2026-04-01",
+    "category": "nápoje",
+    "addedAt": "2026-03-17T13:25:09.652Z"
   }
 ]
