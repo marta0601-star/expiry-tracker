@@ -328,10 +328,10 @@ const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
 // ─── CONFIG (loaded from localStorage or settings) ───
 let CONFIG = {
-  anthropicKey: "",
-  email: "",
+  anthropicKey: "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",
+  email: "marta0601@gmail.com",
   githubToken: "",
-  githubRepo: "",   // "username/repo-name"
+  githubRepo: "marta0601-star/expiry-tracker",
 };
 
 let products = [];
@@ -376,7 +376,8 @@ function loadLocal() {
   try { products = JSON.parse(localStorage.getItem("et_products") || "[]"); } catch { products = []; }
   try {
     const saved = JSON.parse(localStorage.getItem("et_config") || "{}");
-    CONFIG = { ...CONFIG, ...saved };
+    // only load token from localStorage, rest is hardcoded
+    if (saved.githubToken) CONFIG.githubToken = saved.githubToken;
   } catch {}
 }
 
@@ -731,49 +732,31 @@ function renderSettings() {
   return `<div class="section">
     <h2 class="section-title">Nastavenia</h2>
 
+    <div class="banner banner-success" style="margin-bottom:16px">✅ API kľúč a email sú nastavené. Skenovanie funguje automaticky.</div>
+
     <div class="setup-section">
-      <h3 class="setup-title">📱 Pripojenie k GitHub (toto zariadenie)</h3>
-      <p class="setup-text">Tieto 2 údaje treba zadať na každom zariadení zvlášť:</p>
+      <h3 class="setup-title">📱 GitHub Token (pre synchronizáciu produktov)</h3>
+      <p class="setup-text">Zadajte token pre synchronizáciu produktov medzi zariadeniami:</p>
 
       <label class="field-label">GitHub Token</label>
       <input class="field-input" type="password" id="cfg-github-token" value="${CONFIG.githubToken}" placeholder="ghp_...">
 
-      <label class="field-label">GitHub Repo (username/repo-name)</label>
-      <input class="field-input" id="cfg-github-repo" value="${CONFIG.githubRepo}" placeholder="marta0601-star/expiry-tracker">
+      <div class="result-actions">
+        <button class="btn-primary" onclick="saveSettings()">💾 Uložiť</button>
+      </div>
+
+      <div id="settings-status"></div>
+
+      ${synced ? `<div class="banner banner-success" style="margin-top:12px">🔄 Synchronizácia aktívna</div>` : `<div class="banner banner-info" style="margin-top:12px">ℹ️ Bez tokenu appka funguje, ale produkty sa nebudú synchronizovať medzi zariadeniami.</div>`}
     </div>
-
-    <div class="setup-section" style="border-color:#bbf7d0">
-      <h3 class="setup-title" style="color:#166534">🔄 Synchronizované nastavenia</h3>
-      <p class="setup-text" style="color:#166534">Tieto sa ukladajú na GitHub — zadáte raz a fungujú všade:</p>
-
-      <label class="field-label">Anthropic API kľúč (pre rozpoznávanie)</label>
-      <input class="field-input" type="password" id="cfg-anthropic" value="${CONFIG.anthropicKey}" placeholder="sk-ant-...">
-
-      <label class="field-label">Email (kam posielať upozornenia)</label>
-      <input class="field-input" type="email" id="cfg-email" value="${CONFIG.email}" placeholder="vas@email.com">
-    </div>
-
-    <div class="result-actions">
-      <button class="btn-primary" onclick="saveSettings()">💾 Uložiť a synchronizovať</button>
-    </div>
-
-    <div id="settings-status"></div>
-
-    ${synced ? `<div class="banner banner-success" style="margin-top:12px">🔄 Synchronizácia aktívna — nastavenia a produkty sa zdieľajú medzi zariadeniami</div>` : `<div class="banner banner-warning" style="margin-top:12px">⚠️ Zadajte GitHub token a repo pre synchronizáciu medzi zariadeniami</div>`}
 
     <div class="settings-card" style="margin-top:16px">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:8px">📧 Manuálne odoslanie emailu</h3>
-      <p class="settings-desc">Pošle prehľad produktov s expiráciou do 30 dní na váš email.</p>
-      <button class="btn-primary" onclick="sendTestEmail()" ${!CONFIG.email || !CONFIG.anthropicKey ? "disabled" : ""}>
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:8px">📧 Odoslanie emailu</h3>
+      <p class="settings-desc">Pošle prehľad produktov s expiráciou do 30 dní na ${CONFIG.email}.</p>
+      <button class="btn-primary" onclick="sendTestEmail()">
         📧 Odoslať prehľad teraz
       </button>
       <div id="email-status"></div>
-    </div>
-
-    <div class="settings-note">
-      <strong>Ako funguje synchronizácia?</strong><br><br>
-      API kľúč a email sa ukladajú do <code>config.json</code> na GitHub. Keď otvoríte appku na novom zariadení, stačí zadať GitHub token + repo a zvyšok sa stiahne automaticky.<br><br>
-      <strong>Produkty</strong> sa tiež synchronizujú — pridáte na jednom zariadení, uvidíte na druhom.
     </div>
 
     <div class="danger-zone" style="margin-top:20px">
@@ -890,58 +873,25 @@ function removeProduct(id) {
 
 async function saveSettings() {
   CONFIG.githubToken = document.getElementById("cfg-github-token").value.trim();
-  CONFIG.githubRepo = document.getElementById("cfg-github-repo").value.trim();
-
-  const enteredKey = document.getElementById("cfg-anthropic").value.trim();
-  const enteredEmail = document.getElementById("cfg-email").value.trim();
 
   let el = document.getElementById("settings-status");
 
-  // save token + repo locally always
-  localStorage.setItem("et_config", JSON.stringify(CONFIG));
+  // save token locally
+  localStorage.setItem("et_config", JSON.stringify({ githubToken: CONFIG.githubToken }));
 
-  if (!CONFIG.githubToken || !CONFIG.githubRepo) {
-    el.innerHTML = `<div class="banner banner-warning" style="margin-top:12px">⚠️ Zadajte GitHub token a repo.</div>`;
+  if (!CONFIG.githubToken) {
+    el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">ℹ️ Appka funguje aj bez tokenu, ale produkty sa nebudú synchronizovať.</div>`;
     return;
   }
 
-  // CASE 1: User entered API key + email → save to GitHub
-  if (enteredKey && enteredEmail) {
-    CONFIG.anthropicKey = enteredKey;
-    CONFIG.email = enteredEmail;
-    localStorage.setItem("et_config", JSON.stringify(CONFIG));
+  el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">⏳ Synchronizujem produkty...</div>`;
 
-    el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">⏳ Ukladám na GitHub...</div>`;
+  const r = await syncFileToGitHub("products.json", products);
 
-    const r1 = await syncFileToGitHub("config.json", { anthropicKey: CONFIG.anthropicKey, email: CONFIG.email });
-    const r2 = await syncFileToGitHub("products.json", products);
-
-    if (r1.ok && r2.ok) {
-      el.innerHTML = `
-        <div class="banner banner-success" style="margin-top:12px">✅ Nastavenia uložené a synchronizované na GitHub!</div>
-        <div class="banner banner-info" style="margin-top:8px">🔄 Na novom zariadení stačí zadať token + repo.</div>`;
-    } else {
-      el.innerHTML = `<div class="banner banner-error" style="margin-top:12px">❌ Chyba: ${r1.error || r2.error}</div>`;
-    }
-    return;
-  }
-
-  // CASE 2: API key or email empty → try pulling from GitHub (new device)
-  el.innerHTML = `<div class="banner banner-info" style="margin-top:12px">📥 Sťahujem nastavenia z GitHub...</div>`;
-
-  const result = await loadFromGitHub();
-
-  if (result === "ok") {
-    localStorage.setItem("et_config", JSON.stringify(CONFIG));
-    render();
-    el = document.getElementById("settings-status");
-    el.innerHTML = `
-      <div class="banner banner-success" style="margin-top:12px">✅ Nastavenia stiahnuté z GitHub!</div>
-      <div class="banner banner-info" style="margin-top:8px">🔄 API kľúč a email sa načítali automaticky.</div>`;
-  } else if (result === "no-config") {
-    el.innerHTML = `<div class="banner banner-warning" style="margin-top:12px">⚠️ config.json neexistuje na GitHub. Vyplňte API kľúč a email a uložte znova.</div>`;
+  if (r.ok) {
+    el.innerHTML = `<div class="banner banner-success" style="margin-top:12px">✅ Token uložený! Produkty sa synchronizujú.</div>`;
   } else {
-    el.innerHTML = `<div class="banner banner-error" style="margin-top:12px">❌ Nepodarilo sa pripojiť k GitHub. Skontrolujte token a repo.</div>`;
+    el.innerHTML = `<div class="banner banner-error" style="margin-top:12px">❌ Chyba: ${r.error}</div>`;
   }
 }
 
