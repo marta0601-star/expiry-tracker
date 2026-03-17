@@ -386,12 +386,16 @@ function loadLocal() {
 
 async function loadFromGitHub() {
   if (!CONFIG.githubToken || !CONFIG.githubRepo) return "no-credentials";
-  const headers = { Authorization: `token ${CONFIG.githubToken}`, Accept: "application/vnd.github.v3+json" };
+  const headers = {
+    Authorization: `token ${CONFIG.githubToken}`,
+    Accept: "application/vnd.github.v3+json",
+    "If-None-Match": ""  // force fresh response, no cache
+  };
   let configLoaded = false;
 
   // load config.json
   try {
-    const resp = await fetch(`https://api.github.com/repos/${CONFIG.githubRepo}/contents/config.json`, { headers });
+    const resp = await fetch(`https://api.github.com/repos/${CONFIG.githubRepo}/contents/config.json`, { headers, cache: "no-store" });
     if (resp.ok) {
       const data = await resp.json();
       const raw = atob(data.content.replace(/\n/g, ""));
@@ -404,12 +408,12 @@ async function loadFromGitHub() {
 
   // load products.json
   try {
-    const resp = await fetch(`https://api.github.com/repos/${CONFIG.githubRepo}/contents/products.json`, { headers });
+    const resp = await fetch(`https://api.github.com/repos/${CONFIG.githubRepo}/contents/products.json`, { headers, cache: "no-store" });
     if (resp.ok) {
       const data = await resp.json();
       const raw = atob(data.content.replace(/\n/g, ""));
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         products = parsed;
         localStorage.setItem("et_products", JSON.stringify(products));
       }
@@ -446,7 +450,7 @@ async function syncFileToGitHub(filename, data) {
   try {
     // get SHA of existing file
     let sha = undefined;
-    const getResp = await fetch(url, { headers });
+    const getResp = await fetch(url, { headers, cache: "no-store" });
     if (getResp.ok) {
       const d = await getResp.json();
       sha = d.sha;
@@ -874,10 +878,11 @@ function addManual() {
   switchView("list");
 }
 
-function removeProduct(id) {
+async function removeProduct(id) {
   products = products.filter(p => p.id !== id);
-  saveProducts();
   render();
+  localStorage.setItem("et_products", JSON.stringify(products));
+  await syncFileToGitHub("products.json", products);
 }
 
 async function saveSettings() {
@@ -964,9 +969,18 @@ render(); // show immediately with cached data
 // then sync from GitHub in background
 if (CONFIG.githubToken && CONFIG.githubRepo) {
   loadFromGitHub().then(() => {
-    render(); // re-render with fresh data from GitHub
+    render();
   });
 }
+
+// auto-refresh when user comes back to the app (switch from another app, unlock phone, etc.)
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && CONFIG.githubToken && CONFIG.githubRepo) {
+    loadFromGitHub().then(() => {
+      render();
+    });
+  }
+});
 </script>
 </body>
 </html>
