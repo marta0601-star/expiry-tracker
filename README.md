@@ -1,6 +1,6 @@
 # 📦 Expiry Tracker
 
-Sledujte dátumy spotreby produktov. Odfotíte produkt → appka rozpozná dátum → automaticky vám príde email keď sa blíži expirácia.
+.Sledujte dátumy spotreby produktov. Odfotíte produkt → appka rozpozná dátum → automaticky vám príde email keď sa blíži expirácia.
 
 ## Ako to funguje
 
