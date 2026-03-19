@@ -3,49 +3,56 @@
     "id": "mmuqvidvrvak",
     "name": "Ferrero Collection Grand Assortiment",
     "expiry": "2026-06-01",
-    "category": "inÃÂÃÂÃÂÃÂ©",
+    "category": "inÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©",
     "addedAt": "2026-03-17T15:05:46.965Z"
   },
   {
     "id": "mmuqz3txrlyq",
     "name": "Kinder Happy Moments",
     "expiry": "2026-08-06",
-    "category": "inÃÂÃÂÃÂÃÂ©",
+    "category": "inÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©",
     "addedAt": "2026-03-17T15:08:34.725Z"
   },
   {
     "id": "mmur1h878vbr",
     "name": "Red Bull The Peach Edition Energy Drink",
     "expiry": "2026-08-19",
-    "category": "nÃÂÃÂÃÂÃÂ¡poje",
+    "category": "nÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¡poje",
     "addedAt": "2026-03-17T15:10:25.399Z"
   },
   {
     "id": "mmur5nu1zojy",
     "name": "M&M's Biscuit",
     "expiry": "2026-04-17",
-    "category": "inÃÂÃÂ©",
+    "category": "inÃÂÃÂÃÂÃÂ©",
     "addedAt": "2026-03-17T15:13:40.586Z"
   },
   {
     "id": "mmvta4u6q11h",
     "name": "Ferrero Rocher 375",
     "expiry": "2026-07-01",
-    "category": "inÃÂ©",
+    "category": "inÃÂÃÂ©",
     "addedAt": "2026-03-18T09:00:54.656Z"
   },
   {
     "id": "mmxgg9t78knj",
-    "name": "NescafÃ© Dolce Gusto Ristretto Barista",
+    "name": "NescafÃÂ© Dolce Gusto Ristretto Barista",
     "expiry": "2026-07-31",
-    "category": "nÃ¡poje",
+    "category": "nÃÂ¡poje",
     "addedAt": "2026-03-19T12:37:18.379Z"
   },
   {
     "id": "mmxhfy1hai43",
-    "name": "NESCAFÉ Dolce Gusto Cappuccino",
+    "name": "NESCAFÃ Dolce Gusto Cappuccino",
     "expiry": "2026-09-30",
-    "category": "nápoje",
+    "category": "nÃ¡poje",
     "addedAt": "2026-03-19T13:05:02.741Z"
+  },
+  {
+    "id": "mmxi07nahihc",
+    "name": "NESCAFE Dolce Gusto Nesquik",
+    "expiry": "2026-06-30",
+    "category": "nápoje",
+    "addedAt": "2026-03-19T13:20:48.311Z"
   }
 ]
